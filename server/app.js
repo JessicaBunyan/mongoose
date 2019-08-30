@@ -4,6 +4,7 @@ const api = require("./api");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const mongoose = require("mongoose");
 
 app.set("port", (process.env.PORT || 8081));
 
@@ -19,11 +20,19 @@ app.use(morgan("dev"));
 
 app.use(function(req,res){
     const err = new Error("not fouund");
-    err.status = 404;
-    res.json(err);
+    err.status = "not found";
+    res.status(404).json(err);
 })
 
+mongoose.connect("mongodb://localhost:27017/virtualstandups", {useNewUrlParser: true})
 
-app.listen(app.get("port"), function(){
-    console.log("Listening on port " + app.get("port"));
-})
+const db = mongoose.connection;
+db.on("error", console.error.bind(console, "connetion error"))
+
+db.once("open", () => {
+    console.log("Connected to mongoDB");
+    
+    app.listen(app.get("port"), function(){
+        console.log("Listening on port " + app.get("port"));
+    })
+}) 
