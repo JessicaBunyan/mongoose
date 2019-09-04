@@ -1,0 +1,112 @@
+Mongoose is an abstraction layer ontop of MongoDB native driver
+
+mongoose document is a direct mapping to the mongoDB document
+
+Mongoose is more of a document modelling tool than a mapper
+
+
+we will use express router middleware
+
+mongoose schema types vs js types
+
+String <=> String
+Number <=> String
+Date <=> object
+Buffer <=> object
+Boolean
+Mixed <=> object
+ObjectId <=> object
+Array <=> Array(object)
+
+
+
+========
+QUERYING
+========
+
+When  using query methods if you do not supply a callback they will return an query object which you can call exec() on 
+you can chain this on one line by going Standup.find(conditions).exec()
+
+const Standup = require("models/standup");
+
+Standup.find({}) // find all
+Standup.find({memberName: "David"}) // find David
+
+Standup.find({memberName: "David"}, "memberName, impediment") // find david, return only the memberName and impediment parts of the object
+
+
+
+Standup.findOne({memberName: "David"}) // find one
+
+
+Standup.findById(id) // just id not an object
+
+Standup.findById(id, '-impediment') // return all fields EXCEPT impediment
+
+
+comparison query operators:
+these are the same as in MongoDB 
+
+$gt 	greater than
+$gte 	greater than equal to
+$in 	exists in
+$lt 	less than
+$lte 	less than or equal to
+$ne 	not equal to
+$nin 	does not exist
+
+
+
+Customer.find({discount: {$gte: 10}}, (err, results) => {});
+Customer.find({discount: {$gte: 10, $lte 20}}, (err, results) => {});
+
+
+Queries are chainable so where methods can be added on eg
+
+Customer.where("discount")
+	.gte(10)
+	.lte(20)
+	.where("zipCode", "12345") // where has second param which is the value we're searching for
+	.exec(callback)
+
+
+
+
+========
+UPDATING
+========
+
+its possible to query a document, modify it and save it back
+but there's a better way, which requires only one database call
+
+
+methods we will use
+
+updateOne()
+updateMany() // for updating multiple docs with same data
+deleteOne()
+deleteMany();
+findByIdAndUpdate();
+findByIdAndDelete();
+
+
+updateOne()
+
+const query = {memberName: "Marry"}
+const newDoc = {memberName: "Mary"}
+
+Standup.updateOne(query, newDoc, () => {// callback}) // this will change the first matching document (memberName: marry) to memberName Mary
+
+
+
+Standup.updateMany
+
+const qry = {impediment: ''},
+const update = 
+
+Standup.updateMany(
+	{impediment: ''},
+	{impediment: "None"},
+	() => {
+		//callback}
+	)
