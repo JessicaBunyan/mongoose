@@ -110,3 +110,109 @@ Standup.updateMany(
 	() => {
 		//callback}
 	)
+
+
+==========
+VALIDATORS
+==========
+
+
+Validation is defined in the mongoose schema type 
+
+All of these have the Required validator available, as well as the following validators per type
+
+String: enum, match, minlength, maxlength
+Number: min, max
+Date 
+Buffer
+Boolean
+Mixed 
+ObjectId
+Array 
+
+
+String Match - can use regex
+
+const reMatch = /[a-zA-Z]/
+
+const customerSchema = new mongoose.Schema({
+	name: {
+		type: String,
+		required: true,
+		match: reMatch
+	}
+})
+
+
+String enum 
+
+const validValues = ["enum1", "enum2"]
+const customerSchema = new mongoose.Schema({
+	name: {
+		type: String,
+		required: true,
+		enum: validValues
+	}
+})
+
+
+
+Number min/max
+
+//.. = mongoose.Schema({
+	discount: {type: number, min: 5, max: 60}
+})
+
+
+
+What is middleware? functions which are given control of the execution flow during the following methods
+
+validate
+save
+remove
+init
+
+we're focusing on save
+
+validation flow of execution
+
+Save is called
+default values are applied
+validation occurs
+error / success returned (via callback)
+
+
+=================
+CUSTOM VALIDATORS
+=================
+
+As well as the built in validators, we can write custom validators
+
+validators are written arrays.
+arg1 is a function which takes the value and must return true or false (allow or reject)
+arg2 is an error message
+
+const sizeValidator = [
+	function(value){
+		return (value.length > 0 && value.length <= 50
+	},
+	"Error, length must be between 1 an 50 chars long
+]
+
+to attach a custom validator use the following
+
+... = mongoose.Schema({
+	name: {type: string, required: true, validate: sizeValidator}
+})
+
+
+we can use properties like {PATH} and {VALUE} in the error message of a custom validator to refer to the property and supplied value respectively
+
+
+const requiredStringValidator = [
+	function(val) {
+		let testVal = val.trim();
+		return testVal.length > 0;
+	},
+	"Please supply a value for {PATH}"
+]
