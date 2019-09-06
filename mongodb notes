@@ -1,0 +1,115 @@
+Notes from Introduction to MongoDB from Nuri Halperin
+
+you can put config in a mongod.conf file and use mongod -f [configfile.conf]
+
+this file looks like
+
+#comment describing line
+dbpath=/example/db
+
+logpath=/example/mongo.log
+
+
+
+installing mongo as a service
+
+
+// Install as service
+mongod [options] --install
+
+net start mongodb
+
+mongo shell - for connecting to mongo via commandline
+if its on local + default host you can connect with no options by typing "mongo" on the command line
+
+====================
+MONGO SHELL COMMANDS
+====================
+
+show dbs 							- list databases
+db 									- show current database
+use [dbName] 						- switch to database [dbName]
+help								- show list of commands
+db.foo.save({prop: value,...})		- save object to collection foo
+
+
+
+Replica Sets 
+============
+
+Primary DB
+Secondary DB (1 or more)
+Arbiter DB (optional)
+
+ALL writes go to primary, primary replicates this data onto secondaries.
+Any writes to a secondary will fail, these are read only instances
+If the primary fails, one of the secondaries will take over and become the primary
+if one of the secondary fails, other secondaries or the primary will be able to handle all reads/writes
+
+primary fails => an "election" is held
+votes from over half of the total number of servers are required to make a new server a secondary. 
+This means you cannot have just 1 primary and 1 secondary, as if primary goes down secondary would not get over 50% of votes.
+You want an odd number of machines in the farm
+
+Arbiters don't actually store any data, they are just used to break ties in elections. 
+Arbiter's will never vote for themselves
+They are something you can add in to bump you number of machines from even up to an odd.
+
+
+You can set up three servers on your own machine so long as you use different ports. 
+These will all need their own data locations on disk
+
+in production of course these would all run on separate machines
+
+
+use the --replSet option to tell an instance that they are part of a set
+
+start "a" mongod --dbpath ./db1 --port 30000 --replSet "replicaSetDemo"
+start "b" mongod --dbpath ./db2 --port 40000 --replSet "replicaSetDemo"
+start "c" mongod --dbpath ./db3 --port 50000 --replSet "replicaSetDemo"
+
+you still need more to tell these who is primary etc
+
+you can connect to one of these with
+
+mongo --port 30000
+
+we're now connected to "a" via the mongo shell
+
+we can now specify a config object. Below is a minimal example
+
+const demoConfig = 
+{
+	"_id": "replicaSetDemo",
+	"members": [
+		{
+			"_id": 0,
+			"host": "localhost: 30000",
+			"priority": 10 //gets more votes in an election - with no others having priority guarantees this will become primary
+		},
+		{
+			"_id": 1,
+			"host": "localhost: 40000",
+		},
+		{
+			"_id": 2,
+			"host": "localhost: 50000",
+			"arbiterOnly": true
+		},
+	]
+}
+
+now to use this config and start the pool
+rs.initiate(demoConfig) //rs stands for replicaSet
+
+if the shell is showing
+>	  							- it means server is just one server
+replicaSetDemo:STARTUP>			- it means server is part of replicaSetDemo set, and set is starting up
+replicaSetDemo:PRIMARY>			- server is part of replicaSetDemo set, and this server is the Primary
+
+
+secondaries (slaves) need to be told its ok to accept reads. this can be done when connecting or by typing
+db.setSlaveOk();
+
+
+you can check replSet status with rs.help()
