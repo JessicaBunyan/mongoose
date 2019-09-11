@@ -113,3 +113,199 @@ db.setSlaveOk();
 
 
 you can check replSet status with rs.help()
+
+
+===========
+MONGO SHELL
+===========
+
+
+Your application will communicate with the mongod server - look up files, save files
+
+additionally the shell can be used to do the same things
+
+in the shell you can write JS scripts - the shell is a JS interpreter
+this could be a file loaded by the shell and executed or typed into the shell as is
+
+
+you can write admin scripts 
+- could have an admin script to reset data to a specific state etc
+- could check status of document
+- can check status of replsets etc
+
+you can run the shell without opening it e.g just run a single script without opening whole shell console. This is really useful for tasks run as services/ on schedules
+
+mongo server1/admin --eval "db.runCommand({logRotate: 1})" // rotate log file to new one so it doesn't get too big - could be scheduled daily
+
+mongo server1 myTask.js
+
+we can remain in the shell (e.g to see results/status) by using --shell
+
+mongo server1 myTask.js --shell
+
+printjson() -- prints result of command as JSON
+
+
+mongo localhost/admin --eval "printjson(db.runCommand({logRotate: 1}))"
+> {ok: 1}
+
+
+script:
+
+var userCount = function(){
+	var count = db.Users.count();
+	var entry = {_id: Date(), n: count};
+	db.UserCountHistory.save(entry);
+	print("Today's count: " + entry.n);
+}
+
+userCount();
+
+we can call this with
+mongo userCount.js
+
+
+script safer.js
+DB.prototype.dropDatabase = function() {
+	print("dropDatabase is forbidden")
+}
+
+db.dropDatabase = DB.prototype.dropDatabase
+
+mongo safer.js --shell
+>db.dropDatabase();
+
+
+
+you can use an external editor (e.g vs code) to define functions when scripting, rather than when doing it from the console/shell
+
+this is done with set EDITOR="path-to-editor.exe"
+
+then say you do 
+myFunction = function(){
+	///...
+}
+
+edit myFunction  - this will open myFunction in vscode for editing, so we can fix any issues - save it, then you can invoke the updated function
+
+
+run a script from a file when you are in the mogno shell
+load("filename.js"); - thats it
+
+
+Running scripts each time someone enters the shell
+.mongorc.js
+- save this is C:/users/jessica
+then any code in this file will be called when opening shell
+
+these can be circumvented with mongo --norc
+
+common strategy would be to disable dropdb and shutdownserver 
+
+
+
+mongo uses memory-mapped files
+pretending all info is existing and available to it whenever needed
+the OS handles loading the actual file from disk from the memory mapped file
+
+
+BSON - how is data formatted?
+
+BSON = binary JSON
+designed to be 
+- Lightweight
+- Traversable
+- Efficient
+
+this + memory mapping makes it very efficient to move from application data to disk and back
+
+
+Saving Data rules:
+#1 A document must have an _id field.
+
+this is the only rule
+document max size is 16mb
+
+
+=====================
+saving data via shell
+=====================
+
+
+show collections
+>
+
+db.foo.save({_id: 1, x:10}) // save this object to collection foo
+
+db.foo.find()
+> {"_id": 1, "x": 10}
+
+show collections
+>foo
+>system.indexes
+
+db.system.indexes.find
+>{"v": 1, "key: {"_id: 1} //...}
+
+_id can be int, number, string, date or complex object. Only invalid type is array
+
+
+insert - Only insert document if document with this ID does not already exist
+
+db.foo.insert({_id: 1, data: foo})
+db.foo.insert({_id: 1, data: bar}) // returns error - duplicate ID 
+
+by contrast - save would just blindly overwrite
+
+insert could be used to prevent double-submission of forms etc, providing we are supplying the id. - for example we could use email as key
+
+
+if id isn't provided, insert works same as save
+
+When updating, always use update instead of save
+aside from not having to manually read => update => write, it also will cause concurrency issues between the load and save.
+
+update() is atomic within a document. Two concurrently issued update commands will be executed sequentially
+
+db.foo.update(query, update, options);
+
+options - can specify to update one, many, or upsert (insert if no doc matches query)
+
+if options is omitted mongo will update just 1 doc and no upsert
+
+
+update has operators e.g $inc so we don't have to lookup existing value to increment
+
+db.foo.updatE({_id: 1}, {$inc: {x: 1}); // increment field x by 1
+
+
+
+update operators
+$inc - increment - {$inc: {x: 1}} //increment property x by 1
+$set - set - {$set: {y: 2}} // set property y to 2
+$unset - remvove field  - requires blank param e.g {$unset: {y: ""}} // to unset property y
+$rename  - {$rename: {"naem", "name}} // rename "naem" property to "name"
+$push - {$push: {arr: "foo"}} // pushes string "foo" to array arr - works even if arr does not exist
+$addToSet - {$addToSet {arr: "foo"}} // pushes to array, but only if "foo" is not in the array concurrently
+$pull - ${$pull: {arr: "foo"}} // remove all elements "foo" from the array
+$pop - ${$pop: {arr: 1}} // remove element from end of array
+$pop(inverse) - ${$pop: {arr: -1}} // remove elemnt from front of arrray - pop is safe on an empty array. Will leave empty array in place
+
+
+===============
+Multiple Update
+===============
+
+db.foo.update({}, ${push: {things: "foo"}}, {multi: true}) //update all documents in collection by pushing "foo" to the things array. Requires {multi: true} option
+
+You can query an array on a value eg.
+
+{ _id: 2, things: ["foo", "bar", "baz"]}
+{ _id: 1, things: ["foo", "quaz", "zark"]}
+
+db.foo.update({things: "foo"}, newVals) // this will update doc 1 and 2
+db.foo.update({things: "bar"}, newVals) // this will update only doc 1
+
+
+As well as update there is also findAndModify()
+
