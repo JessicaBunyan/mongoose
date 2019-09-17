@@ -309,3 +309,112 @@ db.foo.update({things: "bar"}, newVals) // this will update only doc 1
 
 As well as update there is also findAndModify()
 
+
+
+=================
+Finding Documents
+=================
+
+db.foo.find(query, projection) - projection means which fields we want, if not supplied everything is returned
+
+
+Comparison
+
+db.foo.find({_id: {$gt: 3})
+db.foo.find({_id: {$gt: 2, $lte: 5})
+db.foo.find({_id: {$not: {$gt: 3}}})
+
+
+
+db.animals.find({$tags: {$in: ['cute', 'ocean']}})
+//get animal with either a tag cute or ocean
+
+
+db.animals.find({$tags: {$all: ['cute', 'ocean']}})
+// get animals which are both cute and in the ocean
+
+
+
+"Dot" notation - digging deeper into objects - kinda like JS dots
+
+
+
+db.animals.find({"info.canFly": true})
+
+will find animals with an info field which has property canFly which is set to true. 
+Doesn't matter if some objects don't have info or their info doens't contain a canFly field
+
+
+ALWAYS USE DOT notation
+do not do .find({info: {canFly:true, type:"bird"}}).
+
+This would only match the subdocument exactly as it is, for example only if those fields appear in that order, with no other fields.
+The above query would only find docs whos info document is EXACTLY {canFly:true, type:"bird"}
+
+
+Dot notation should be used instead for drilling down
+
+db.animals.find({"info.canFly": true, "info.type": "bird"})
+
+matching null
+
+db.animals.find({"info.canFly": null}) // returns docs where info.canFly is null OR not present
+
+If you want to check for presence of a field, you can use $exists
+
+
+
+projection examples
+
+_id is always included unless explicitly excluded
+
+{_id: 1} // return only id
+{_id: 1, name: 1} // return id and name
+{name: 0 } // return all fields but name
+
+
+
+======
+Cursor
+======
+
+What happens when you send a query to the mongo server?
+
+the query might contain many many documents, potentially more than you could even keep in memory
+
+Mongo uses a cursor to manage this. It will return a cursor which gives you a batch of documents
+
+the application (or mongo shell) will take as many batches as they want, then when done inform the server to close the cursor
+
+
+
+
+var c = db.animals.find({}) {name: 1});
+
+c.size() - returns 6
+c.hasNext()
+c.forEach(d => print(d.name))
+
+its more like a stream than a loop. If you call forEach then subsequently call hasNext it will return false.
+Its iterable once
+
+
+db.animals.find({}, {name: 1}).sort({name: 1}) //sort by name ascending (-1 for descending)
+
+
+db.animals.find({}, {_id: 1}).sort({name: 1}) // Sort by name even though we aren't returning name. This is possible because sorting is done in the mongo server
+
+
+
+We can sort on a sub property e.g info.type, and we can sort by multiple fields
+
+db.animals.find({}).sort({"info.type": 1, "name": 1}) // sort by info.type, and then by name
+
+
+query.limit(3) // return first 3 (or as many as present if fewer than 3)
+
+
+query.skip(10).limit(10) // skip 10, show next 10
+
+
+f you use findOne() you will be returned a record, rather than a cursor
