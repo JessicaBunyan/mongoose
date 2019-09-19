@@ -1,0 +1,34 @@
+API Design using Node/Express/Mongo
+
+MIDDLEWARE
+
+middleware is used by express to modify and inspect the incoming request
+examples might be:
+- parsing urls
+- handling auth
+
+
+examples: body-parser
+
+
+REST - representational state transfer
+
+REST is a not a framework, or a standard, its more of a paradigm
+The modern web is largely built around REST
+
+it should be stateless - it should perform 1 action thats fresh and doesn't depend on previous or future requests
+it should use HTTP verbs explicitly
+it should expose a directory-like URL pattern for the routes
+it should transfer JSON or XML (lets be honest its JSON nowadays)
+
+Rest principles match the verbs to CRUD actions as follows
+
+GET -> READ
+POST -> CREATE
+PUT -> UPDATE
+DELETE -> DESTROY / DELETE
+
+
+HTTP 201 - successfully created
+
+
