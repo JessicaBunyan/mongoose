@@ -6,29 +6,395 @@ middleware is used by express to modify and inspect the incoming request
 examples might be:
 - parsing urls
 - handling auth
+- compression
+
+express.static - middleware shipped with express
+e.g
+
+app.use(express.static("public")) // anythig in public folder will be served as static asset
+
+the static directory won't be part of the url, so if we have files
+
+/public/images/logo.png
+/public/js/app.js
+/public/favion.ico
+
+we can access them via url: images/logo.png, js/app.js etc
+You can use a reverse proxy cache to improve performance of serving static assets
+
+If there is an index.html in the root of the static dir ("public" in this case) express will serve it when someone makes a get request to /
+
+middleware is used in the order in which it is add to the app
 
 
-examples: body-parser
+
+potentially useful middleware
+gzip compression
+express.static
+
+production advice: https://expressjs.com/en/advanced/best-practice-performance.html#use-gzip-compression
 
 
-REST - representational state transfer
+Definitions of middleware
+a set of utility clases which allow express to do dirtywork
 
-REST is a not a framework, or a standard, its more of a paradigm
-The modern web is largely built around REST
+express is basically a routing framework, with support for middleware. Middleware does the majority of the work
 
-it should be stateless - it should perform 1 action thats fresh and doesn't depend on previous or future requests
-it should use HTTP verbs explicitly
-it should expose a directory-like URL pattern for the routes
-it should transfer JSON or XML (lets be honest its JSON nowadays)
+middleware has access to the request obj, the response obj, and the next() function. the next() function gives the next middleware function
+middleware will take this params, do a bunch of stuff e.g modify request, then call next() to trigger the next middleware
 
-Rest principles match the verbs to CRUD actions as follows
+middleware can run any code. Call another server, query a database, even send a request back to the client
 
-GET -> READ
-POST -> CREATE
-PUT -> UPDATE
-DELETE -> DESTROY / DELETE
+middleware MUST either end the request/response cycle (e.g send a response), OR call request. If it does neither the server will hand forever
+
+There are 5 different types of middleware in express 4.x
+They aren't mutually exclusive, one middleware can be e.g third party and application level
+
+Third Party - e.g bodyparser
+built in - e.g express.static
+Router Level
+Application Level - e.g anything with app.use() 
+Error Handling - has 4 arguments - (err, req, res, next) - needs all 4 parameters for express to register it as an error handler
 
 
-HTTP 201 - successfully created
+Error handler middleware should always go last, after other middleware and after routes.
+Routes are all siblings e.g the following routes have the following orders.
+
+0. app.use(bodyparser);
+1. app.use(express.static)
+2. app.get("route1", fn(){})
+2. app.get("route2", fn(){})
+2. app.post("route3", fn(){})
+3. app.use(myErrorHandler)
+
+this means calling next() in a router handler will not trigger another route handler
+
+
+morgan - middleware for logging requests/reponses
+
+
+route level middleware
+app.get("/route", middleware(), function(req,res){})
+
+we can pass in array of middlewares too
+middlewares are normally executed when applied because they are functions that return functions
+
+e.g
+
+function myMiddleWare(options){
+  return function(req,res, next){
+    // do stuff
+    next()
+  }
+}
+
+app.use(myMiddleWare(options))
+
+this also allows us to use options in our middleware
+
+
+app.param() is a way to add middleware
+
+app.param("id", (req,res,next,id) => { })
+
+attach the given funciton to any route which has a param named "id". Doing this will make the value of that id param available within the function
+
+You could for example use this to look up an object and attach it to req 
+
+app.param("id", (req,res,next,id) => {
+
+  const entity = database.findItemById(id);
+
+  if (entity){
+    req.entity = entity;
+    next();
+  } else {
+    res.status(404).send()
+  }
+ }) 
+
+then in our routes we can access req.entity rather than having to do the lookup then
+
+
+Don't ever use throw new Error(), instead call next(erorr) and add an error handling middleware to the end of the stack
+
+calling next(error) will skip any middleware until the first error-handling middleware
+
+
+Middleware could be put on specific routes - e.g attach to POST routes and generate an ID for the resource
+
+
+
+(sub) Routers
+
+we can configure routers with their own rules and middleware
+instead of attaching everything on app.use or app.get or whatever, we can have a specific router
+
+Any router will use the global middleware/routes registered on the app, but can also have their own personal middleware stack and routes
+
+A good pattern is to define routes on the lobal app which pass control to another router
+
+var app = express();
+var todosRouter = express.Router();
+
+todosRouter.get("/" function(req, res){ //... })
+
+app.use("/todo", todosRouter); // mount this router to this url
+
+calling "/todo" will hit the route - the todosRouter is trying to match "/" relative to where it is mounted
+
+
+
+you can use app.route() or router.route() to chain methods and attach different routerHandlers (with different verbs) on the same route
+
+e.g 
+app.route("/")
+  .get(function(req,res){//.. })
+  .post(function(req,res){//.. })
+  
+  
+
+
+Testing:
+
+good practise is to export the app before starting it, so our test can inspect it without having tos tart it, 
+and so our test can stat the server if it choosed with different config
+
+so move the app.listen code outside the main file, export the app instead. make a file start-server.js
+
+supertest is a good framework to test our api
+
+describe("todos", () => {
+
+  it ("should get all TODOS", function(done){
+    request(app)
+      .get("/todos")
+      .set("Accept", "application/json")
+      .expect("Content-Type", "/json/") //.expect is from supertest - allows us to test headers etc
+      .expect(200)
+      .end(function(err, resp){ // need to call .end() to acess response obj
+        expect(resp.id).toBeDefined(); // this is expect from jasmine 
+        done(); // indicate to jasmine/mocha that the test is done - otherwise test will hit timeout limit and fail
+      })
+
+
+  })
+
+})
+
+we can take a service-oriented approach as opposed to traditional MVC, so instead of
+
+server
+  - controllers
+    - controllerA
+    - controllerB
+  - services
+    - serviceA
+    - serviceB
+  - repositories
+    - respositoryA
+    - respositoryB
+
+we instead group by feature
+
+server 
+  - featureA 
+    - featureA-controller
+    - featureA-service
+    - featureA-routes
+  - featureB
+    - featureB-controller
+    - featureB-service
+    - featureB-routes
+
+
+
+configuration - we can setup a config object based on the environment (dev/prod), rather than constantly checking NODE_ENV in every relevant file
+
+
+//base config
+var config = {
+
+  //define environment names
+  dev = "development",
+  prod = "production",
+  test = "testing
+
+  logging: false,
+  port: process.env.PORT || 3000
+
+  secrets: {
+    githubToken: process.env.GITHUB_TOKEN,
+    jwtSecret: process.env.JWT_SECRET,
+  }
+}
+
+process.env.NODE_ENV = process.env.NODE_ENV || config.dev
+config.env = process.env.NODE_ENV;
+
+var envConfig = require("./" + config.env);
+// load dev/test/prod config from relevant file 
+
+module.exports = Object.assign(config, envConfig || {}) // write env-specific config into this obj
+
+then we can just import config elsewhere in our application
+
+
+
+middleware can be added by exporting a function which takes an app,
+then we can do 
+const app = express();
+require("./middleware")(app)
+
+can do the same thing for attaching routers
+
+
+
+===================
+mongoose population
+===================
+
+Neat technique for looking up an object by its ID from another collection. For example if we have an author with a collection of stories
+when we load a story we will also want to load the author info, even though the story only has a reference to the author's ID
+population is a mongoose way of doing a lookup on the author and populating it into the document
+
+in our schema
+
+const personSchema = Schema({
+  _id: Schema.Types.ObjectId,
+  name: String,
+  age: Number,
+  stories: [{ type: Schema.Types.ObjectId, ref: 'Story' }] // ref tells mongoose which module to use during population
+});
+
+const storySchema = Schema({
+  author: { type: Schema.Types.ObjectId, ref: 'Person' },
+  title: String,
+  fans: [{ type: Schema.Types.ObjectId, ref: 'Person' }]
+});
+
+
+Story.findOne({title: "Casino Royale"})
+  .populate("author")
+  .exec(function(err, story){
+  
+  });
+
+or
+
+Story.findOne({title: "Casino Royale"})
+  .populate("author", "name genre")
+  .exec(callback)
+
+
+populate author, but only the name and genre properties of the author doc
+
+population can be done in middleware if we always want a certain field populated
+
+see this link for more https://mongoosejs.com/docs/populate.html
+
+
+
+
+====================
+Authentication + JWT
+====================
+
+great website: 
+jwt.io
+
+
+JWT will be sent on every request - rest is stateless so we don't know about the prev request
+
+server doesn't have any session store or anything so token must be stored in browser
+
+basic jist is server signs user object with a password using an algoritm e.g SHA256
+
+later the user will have to send that token in a header, and verify using the server's secrets
+
+PSEUDOCODE
+
+// creating a token for userObj
+var token = jwt.sign(userObj, "password")
+
+
+// on incoming request
+var user = jwt.verify(req.headers.authorization, "password");
+// This only verifies that the object was signed with the same secret we are using 
+
+
+User.findBy(user) // need to verify that the user actually exists in the system - they may have been deleted etc
+
+tokens can be set to expire - varies by library but will see example later
+
+
+
+User signs up to our website, on success we create a new user in our DB, we use their id to create a JWT and send it back in the signup response.
+The client is then responsible for attaching this any time the user makes a sensitive request.
+This provides authentication and identification, as we can resolve the userID from the supplied web token to a user in our database
+
+
+
+use HTTPS!
+hash your passwords! (and salt) - create unique salts per user
+
+
+one way to secure resources is to add a method onto our mongoose models
+
+DogSchema.methods.bark = function(){
+  // this is like adding to the prototype. instances can use this method.
+}
+
+DogSchema.statics.findByOwner = function(){
+  // static method, not on each individual object
+}
+
+
+
+
+
+mongoose has middleweare, which is perfect for validating, changing, notifying etc
+we can attach middleware to lifecycle events relating to our document eg.
+before save, before validations, after save
+
+DogSchema.post("save", function(next{}) // run after saving
+DogSchema.pre("validate", function(next){}) // run before validation
+
+mongoose middleware also requires you to call next() at the end which will trigger the next hook
+
+
+we can use middleware to hash passwords before our user is created
+
+
+
+config - 
+
+properties to set:
+db location
+port
+seed true/false
+logging true/false
+
+Auth setup
+
+use jsonwebtoken package
+use express-jwt package
+
+then we can define a function
+
+checkToken = expressJwt({secret: config.secrets.jwt})
+
+we can then use checkToken(req,res,next)
+- this will either call  next(), or next(new Error(unauthorized))
+if it succeeds it will attach the properties from the token to req.user
+
+signToken =  function(id){
+  return jwt.sign(
+    {_id: id},
+    config.secrets.jwt,
+    config.expireTime
+  )
+}
+}
 
 
