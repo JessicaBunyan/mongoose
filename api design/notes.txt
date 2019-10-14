@@ -398,3 +398,51 @@ signToken =  function(id){
 }
 
 
+
+bcrypt can be used (check this is still up to date) to hash/salt. use asycn methods
+
+verifyUser(req,res, next){
+  const user = req.username;
+  const pass = req.password;
+
+  if (!user || !pass){
+    res.status(400).send("missing username or password")
+  }
+
+
+  User.findOne({username: user})
+    .then(u => {
+      if (!u){
+        res.status(401).send("no matching username");
+      } else {
+        if (!user.authenticate(password)){ // method we attached to mongoose model
+          res.status(401).send("Wrong password")
+        } else{
+          req.user = user;
+          next();
+        }
+      }
+
+    })
+}
+
+this is a middleware so we could put a route like
+
+.post("/login", verifyUser, (req,res) => {
+  if (req.user){
+    
+    // send JWT
+  var token = signToken(user._id);
+  res.json({token: token})
+
+
+  }
+})
+
+can use passport instead of managing auth ourselves, this makes it easier to do social signin etc
+
+check his repo (Scott Moss) to see if he's shown exmaple of this
+
+
+
+unravelling JWT - once we've pullled the _id out we can have a middleware to transform that into a user (load it from db)
