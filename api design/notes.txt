@@ -446,3 +446,16 @@ check his repo (Scott Moss) to see if he's shown exmaple of this
 
 
 unravelling JWT - once we've pullled the _id out we can have a middleware to transform that into a user (load it from db)
+
+
+cors() - middleware will be required to allow cross origin checks
+can be given origin whitelist/blacklist as params
+
+
+sluggify is a node package which can be used to give urls from titles
+
+e.g 10 reasons you should love Broccoli
+becomes
+10-reasons-you-should-love-broccoli
+
+
