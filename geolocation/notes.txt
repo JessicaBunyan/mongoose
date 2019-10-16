@@ -30,4 +30,53 @@ getCurrentPosition has three typical error responses:
 2. Position Unavailable
 3. Timeout
 
-the numbers correspond to the error.code properties
+the numbers correspond to the error codes (from error.code property)
+
+
+
+as well as getCurrentPosition we can use watchPosition to be notified each time position changes
+
+we can cancel the callback when we call clearWatch() with a tracking id - e.g
+
+const tid = navigator.geolocation.watchPosition(callback)
+clearWatch(tid)
+
+
+
+watchPosition can be battery draining - use with caution
+
+
+google maps API
+
+google.maps.geometry - helper library
+
+google.maps.geometry.spherical.computeDistanceBetween(LatLng, LatLng, radius)
+
+in our case - the radius of the sphere is radius of planet earth - this is default so this argument should be omitted
+
+computeDistanceBetween(a, b)
+
+
+To use this API you will need an API key from google - do this online
+google maps javascript API
+
+then include script in index
+
+script src="[api-url]?key=key&libraries=geometry"
+
+const googleLocation = new google.maps.LatLng(lat, lng) - gmaps object - can be useful to use - this is the param type required for computeDistanceBetween function
+
+function computeTotalDistance(){
+  let totalDistance = 0
+
+  if (locations.length > 1){
+    for (let i=1; i< locations.length; i++){
+      totalDistance += google.maps.geometry.spherical.computeDistanceBetween(locations[i-1], locations[i])
+    }
+  }
+
+  return totalDistance
+}
+
+
+
