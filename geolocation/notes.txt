@@ -1,0 +1,33 @@
+What is a location?
+
+a latitude (dist north/south of equator) - north is positive
+a longitude (dist east/west of Greenwich) - east is positive
+
+These can be written in old school e.g latitude might be: 47° 38' 34" N, 
+
+but we will be using the decimal forms 
+
+
+
+How the browser gets your location
+
+whether each of these are used depends on if your device supports them/has them enabled
+
+GPS - e.g on a mobile device. GPS can also include altitude and heading info
+IP address-  uses database of known IP addresses to physical location. - not perfect but can still be applicable
+Wifi - uses database of known wifi access points and calculates your distance from it - also not perfect
+Cell Phone triangulation - measure distance and signal strength from one or more cell phone towers
+
+
+typically you won't know which method your browser is using, and you don't need to - but you can ask browser for a measure of accuracy
+
+
+geolocation is supported on ie 9+, all good browsers incl. mobile
+
+
+getCurrentPosition has three typical error responses: 
+1. Permission Denied (by user)
+2. Position Unavailable
+3. Timeout
+
+the numbers correspond to the error.code properties
